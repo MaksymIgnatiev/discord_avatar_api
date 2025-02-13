@@ -27,6 +27,7 @@ If you want to make a single request, and save the file to the `./fetched/` dire
 ```sh
 bun fetch 12345678901234[.ext] [path_to_save]
 ```
+_Note!_ `fetch` script is not yet implemented!  
 _Note!_ If the `fetch` script will receave an id or a path without extension, script will default extension to `.png`.  
 _Note!_ If the `fetch` script will receave a path to a directory, script will save the file as `{id}.{ext}` in that directory, asking for confirmation to override.  
 
