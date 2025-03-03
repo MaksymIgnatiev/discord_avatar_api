@@ -88,7 +88,7 @@ export type DiscordUser = {
 
 // ----- Cache -----
 
-//                           `${  id  }_${ size }.${AvatarExtension}`
+/**                          `${  id  }_${ size }.${AvatarExtension}` */
 export type AvatarFilename = `${number}_${number}.${AvatarExtension}`
 export type CacheMap = Map<string, Avatar[]>
 export type Cache = {
@@ -103,7 +103,7 @@ export type Cache = {
 			id: I,
 			ext: E,
 			size: S,
-		): Avatar<E, S> | undefined
+		): Avatar<I, E, S> | undefined
 
 		/** Chechs if the collection of avatars is in the cache, providing id */
 		has<I extends string>(id: I): boolean
@@ -141,7 +141,7 @@ export type Cache = {
 			id: I,
 			ext: E,
 			size: S,
-		): Promise<Avatar<E, S> | undefined>
+		): Promise<Avatar<I, E, S> | undefined>
 
 		/** Chechs if the collection of avatars is in the cache, providing id */
 		has<I extends string>(id: I): boolean

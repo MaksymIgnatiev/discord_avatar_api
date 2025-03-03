@@ -15,11 +15,13 @@ bun install
 ```sh
 echo 'DISCORD_API_BOT_TOKEN="your_discord_bot_token"' >> .env
 ```
+Example `.env` file can be found as `.example.env` in the root
+
 5. Run as a server:
 ```sh
 bun start
 # or to send to the background
-nohup bun start &
+nohup bun start > logs.txt &
 ```
 
 ## Additional functionality
@@ -27,9 +29,8 @@ If you want to make a single request, and save the file to the `./fetched/` dire
 ```sh
 bun fetch 12345678901234[.ext] [path_to_save]
 ```
-_Note!_ `fetch` script is not yet implemented!  
-_Note!_ If the `fetch` script will receave an id or a path without extension, script will default extension to `.png`.  
-_Note!_ If the `fetch` script will receave a path to a directory, script will save the file as `{id}.{ext}` in that directory, asking for confirmation to override.  
+_Note!_ If the `fetch` script will receive an id or a path without extension, script will default extension to default defined in config (`src/config.ts`). Today it's: `.png`.  
+_Note!_ If the `fetch` script will receive a path to a directory, script will save the file as `{id}.{ext}` in that directory, asking for confirmation to override.  
 
 To see help pages for server and fetch scrip - use `-h`/`--help` flag:
 ```sh

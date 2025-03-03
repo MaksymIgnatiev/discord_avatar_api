@@ -208,6 +208,7 @@ export function onCacheType(code: () => void, fs: () => void) {
 	config.cacheType === "code" ? code() : fs()
 }
 
+// check for outdated cache
 setInterval(() => {
 	if (config.cacheType === "code") {
 		for (var [idCode, value] of cacheMap.entries()) {
@@ -216,7 +217,7 @@ setInterval(() => {
 					cache.code.delete(idCode, avatar.extension, avatar.size)
 			}
 		}
-	} else
+	} else {
 		for (var id of cache.fs.getIds(true)) {
 			var filename = id.match(/^\d+/)?.[0] ?? "",
 				size = +(id.match(/(?<=^\d+_)\d+/)?.[0] ?? config.defaultSize),
@@ -225,4 +226,5 @@ setInterval(() => {
 			if (cache.fs.checkTime(filename, fileExt, size))
 				cache.fs.delete(filename, fileExt, size)
 		}
+	}
 }, config.avatarCacheTime)

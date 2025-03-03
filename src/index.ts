@@ -8,7 +8,7 @@
  */
 
 import { Hono, type Context } from "hono"
-import { explicitMemoFetchUserObject } from "./functions"
+import { explicitMemoFetchUserObject, parseFlags } from "./functions"
 import { logger } from "hono/logger"
 import { config } from "./config"
 import { cache, createAvatar, fileExts, onCacheType } from "./db"
@@ -19,7 +19,7 @@ import { join } from "path"
 var argv = process.argv,
 	arg = argv[2]
 
-if (/-h|--help/.test(arg)) {
+if (/^-h$|^--help$/.test(arg)) {
 	console.log(
 		`Usage: bun start [flags...]
 
@@ -87,7 +87,6 @@ app.get("/:id", async (c) => {
 		id = id.match(/^\d+/)![0]
 		if (fileExts.includes(ext_)) ext = ext_
 	}
-
 	// cache check
 	if (config.cacheType === "code") {
 		if (cache.code.has(id, ext, size)) {
@@ -124,7 +123,7 @@ app.get("/:id", async (c) => {
 						),
 					)
 			} else {
-				var avatar = createAvatar(data, ext, size)
+				var avatar = createAvatar(data, id, ext, size)
 				onCacheType(
 					() => cache.code.set(id, avatar),
 					() => cache.fs.set(id, avatar),
@@ -134,6 +133,8 @@ app.get("/:id", async (c) => {
 		})
 	})
 })
+
+parseFlags(process.argv.slice(2))
 
 var server = Bun.serve({
 	static: { "/": rootHtml },

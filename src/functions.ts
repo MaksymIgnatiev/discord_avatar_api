@@ -92,3 +92,28 @@ export function explicitMemoFetchUserObject<
 			)
 		})
 }
+
+// too lazy to make necessary infrastructure
+export function parseFlags(args: string[]) {
+	for (var i = 0; i < args.length; i++) {
+		var argRaw = args[i]
+		if (argRaw.match(/^-{1,2}/)) {
+			var flag = argRaw.replace(/^-{1,2}/, "")
+			if (flag === "c" || flag === "cache-type") {
+				var arg = args[i + 1]
+				if (arg === undefined) {
+					console.log(
+						`Flag '${argRaw}' haven't got any value. Available values: fs, code. Defaulting to '${config.cacheType}'`,
+					)
+					continue
+				}
+				if (arg !== "fs" && arg !== "code") {
+					console.log(
+						`Flag '${argRaw}' accepted wrong value. Available values: fs, code. Defaulting to '${config.cacheType}'`,
+					)
+				} else config.cacheType = arg
+				i++
+			} else console.log(`Unknown flag: ${argRaw}`)
+		} else console.log(`Unknown argument: ${argRaw}`)
+	}
+}
