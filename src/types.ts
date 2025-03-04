@@ -10,6 +10,8 @@ export type ExplanationToAPIResponse = {
 	response: Response
 }
 
+export type PositiveNumber<T = number> = { value: T } & number
+
 export type Avatar<
 	I extends string = string,
 	E extends AvatarExtension = AvatarExtension,
@@ -184,8 +186,16 @@ export type Config = {
 	/** Absolute path to the root of the project */
 	readonly ROOT: string
 	defaultExtension: AvatarExtension
-	defaultSize: number
-	avatarCacheTime: number
+	defaultSize: PositiveNumber
+	/** How long to store avatars in cache in `ms`. -1 = permanently */
+	avatarCacheTime: PositiveNumber | -1
+	/** Where to store avatars:
+	 * `"code"` - in associative map inside code itself
+	 * `"fs"` - in the filesystem in `${config.ROOT}/.cache/` directory
+	 *
+	 * probably gonna add some kind of database like SQL or postgreSQL in the future
+	 * contributions are welcome :)
+	 * */
 	cacheType: "code" | "fs"
 	server: {
 		host: string

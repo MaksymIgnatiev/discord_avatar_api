@@ -11,10 +11,11 @@ import { Hono, type Context } from "hono"
 import { explicitMemoFetchUserObject, parseFlags } from "./functions"
 import { logger } from "hono/logger"
 import { config } from "./config"
-import { cache, createAvatar, fileExts, onCacheType } from "./db"
+import { cache, createAvatar, fileExts, formatAvatarString } from "./db"
 import type { Avatar, AvatarExtension } from "./types"
 import rootHtml from "../public/index.html"
 import { join } from "path"
+import type { StatusCode } from "hono/utils/http-status"
 
 var argv = process.argv,
 	arg = argv[2]
@@ -24,8 +25,8 @@ if (/^-h$|^--help$/.test(arg)) {
 		`Usage: bun start [flags...]
 
 FLAGS:
-	-h, --help               Show this message
-	-c, --cache-type <type>  Which cache type to use: code | fs`,
+    -h, --help               Show this message
+    -c, --cache-type <type>  Which cache type to use: code | fs`,
 	)
 	process.exit()
 }
@@ -34,7 +35,11 @@ var app = new Hono(),
 	noContent = (c: Context) => {
 		c.header("Cache-Control", `public, max-age=2592000`) // 30 days
 		c.status(204)
-		return c.json({ ok: true, code: 204, statusText: "No Content" })
+		return c.json({ ok: true, code: 204 as const, statusText: "No Content" as const })
+	},
+	incorrectUsage = (c: Context, message: string, code = 400 as StatusCode) => {
+		c.status(code)
+		return c.json({ ok: false, code, message })
 	},
 	favicon = Bun.file(join(config.ROOT, "public", "images", "favicon.png"))
 
@@ -45,9 +50,11 @@ function dataResponse<E extends AvatarExtension>(data: Avatar["data"], ext: E) {
 	})
 }
 
-app.get("/favicon.ico", (_) => {
+app.get("/favicon.ico", () => {
 	return new Promise((resolve) => {
 		resolve(
+			// generating buffer each time, because image may change during runtime,
+			// and Bun.file stores only refferense to a file, not the actual content of a file
 			favicon.arrayBuffer().then(
 				(arrbuf) =>
 					new Response(arrbuf, {
@@ -82,15 +89,29 @@ app.get("/:id", async (c) => {
 			400,
 		)
 	} else if (/^\d+\.\w{3,4}$/.test(id)) {
-		console.log(`Extension is in the query: ${id}`)
 		var ext_ = id.match(/\w+$/)![0] as AvatarExtension
 		id = id.match(/^\d+/)![0]
 		if (fileExts.includes(ext_)) ext = ext_
+		else
+			return incorrectUsage(
+				c,
+				`Unsupported file extension: '${ext_}'. Use one of these: ["${fileExts.join('", "')}"] or read 'https://discord.com/developers/docs/reference#image-formatting-image-formats' to see valid image formats`,
+			)
 	}
+
+	/*
+	  should i also check extension and size parameters?
+	  or it's better to default them to not bother?
+	  i think it's better to default them,
+	  because it's javascript baby 😎
+
+	  @see https://tc39.es/ecma262/multipage/
+	*/
+
 	// cache check
 	if (config.cacheType === "code") {
 		if (cache.code.has(id, ext, size)) {
-			console.log(`Avatar(id: ${id}, size: ${size}, ext: ${ext}) is in the code cache`)
+			console.log(`${formatAvatarString(id, ext, size)} is in the code cache`)
 			return dataResponse(cache.code.get(id, ext, size)!.data, ext)
 		}
 	} else {
@@ -99,44 +120,35 @@ app.get("/:id", async (c) => {
 			return cache.fs.get(id, ext, size).then((avatar) => dataResponse(avatar!.data, ext))
 		}
 	}
-	console.log(`Fetching avatar for: Avatar(id: ${id}, size: ${size}, ext: ${ext})`)
-	// too lazy to make it readable, because it's effisient
+
+	console.log(`Fetching avatar for: ${formatAvatarString(id, ext, size)}`)
+
+	// too lazy to make it readable, because it's efficient
 	return explicitMemoFetchUserObject(id, size, ext)().then((data) => {
 		return new Promise((resolve) => {
 			if ("key" in data) {
 				if (data.key === "fethingUser")
-					resolve(
-						c.json({ ok: false, code: 400, message: "Error while fething user" }, 400),
-					)
+					resolve(incorrectUsage(c, "Error while fething user"))
 				else if (data.key === "fethingAvatar")
-					resolve(
-						c.json(
-							{ ok: false, code: 400, message: "Error while fething avatar" },
-							400,
-						),
-					)
-				else
-					resolve(
-						c.json(
-							{ ok: false, code: 422, message: "User don't have any avatar" },
-							422,
-						),
-					)
+					resolve(incorrectUsage(c, "Error while fething avatar"))
+				else resolve(incorrectUsage(c, "User don't have any avatar", 422))
 			} else {
 				var avatar = createAvatar(data, id, ext, size)
-				onCacheType(
-					() => cache.code.set(id, avatar),
-					() => cache.fs.set(id, avatar),
-				)
+				cache[config.cacheType].set(id, avatar)
 				resolve(dataResponse(data, ext))
 			}
 		})
 	})
 })
 
+// Send 204 for all other routes
+app.get("*", noContent)
+
 parseFlags(process.argv.slice(2))
 
 var server = Bun.serve({
+	// might add dynamic page to explore avatars in the future ???
+	// contributions are welcome (preferable not vanila react, because it's too bloated) :)
 	static: { "/": rootHtml },
 	fetch: app.fetch,
 	port: config.server.port,

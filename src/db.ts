@@ -13,6 +13,15 @@ var cacheMap: CacheMap = new Map(),
 		return `Avatar(id: ${this.id}, size: ${this.size}, ext: ${this.extension})`
 	}
 
+/** Just nice function to format avatar representation without all data */
+export var formatAvatarString = function <
+	I extends string = string,
+	E extends AvatarExtension = AvatarExtension,
+	S extends number = number,
+>(id: I, extension: E, size: S): ReturnType<Avatar<I, E, S>["toString"]> {
+	return `Avatar(id: ${id}, size: ${size}, ext: ${extension})`
+}
+
 // List of available image extensions
 // See - https://discord.com/developers/docs/reference#image-formatting
 export var fileExts: AvatarExtensionTuple = ["webp", "png", "gif", "jpeg", "jpg"]
@@ -108,7 +117,7 @@ export var cache: Cache = {
 			}
 			var file = join(cachePath, id)
 			if (ext && size) {
-				var bunFile = Bun.file(`${file}.${ext}`)
+				var bunFile = Bun.file(`${file}_${size}.${ext}`)
 				return bunFile
 					.exists()
 					.then((e) =>
@@ -208,23 +217,25 @@ export function onCacheType(code: () => void, fs: () => void) {
 	config.cacheType === "code" ? code() : fs()
 }
 
-// check for outdated cache
-setInterval(() => {
-	if (config.cacheType === "code") {
-		for (var [idCode, value] of cacheMap.entries()) {
-			for (var avatar of value) {
-				if (cache.code.checkTime(idCode, avatar.extension, avatar.size))
-					cache.code.delete(idCode, avatar.extension, avatar.size)
+// check for outdated cache (if not permanently)
+if (config.avatarCacheTime != -1 && config.avatarCacheTime > 0) {
+	setInterval(() => {
+		if (config.cacheType === "code") {
+			for (var [idCode, value] of cacheMap.entries()) {
+				for (var avatar of value) {
+					if (cache.code.checkTime(idCode, avatar.extension, avatar.size))
+						cache.code.delete(idCode, avatar.extension, avatar.size)
+				}
+			}
+		} else {
+			for (var id of cache.fs.getIds(true)) {
+				var filename = id.match(/^\d+/)?.[0] ?? "",
+					size = +(id.match(/(?<=^\d+_)\d+/)?.[0] ?? config.defaultSize),
+					fileExt = (id.match(/\w+$/)?.[0] as AvatarExtension) ?? config.defaultExtension
+
+				if (cache.fs.checkTime(filename, fileExt, size))
+					cache.fs.delete(filename, fileExt, size)
 			}
 		}
-	} else {
-		for (var id of cache.fs.getIds(true)) {
-			var filename = id.match(/^\d+/)?.[0] ?? "",
-				size = +(id.match(/(?<=^\d+_)\d+/)?.[0] ?? config.defaultSize),
-				fileExt = (id.match(/\w+$/)?.[0] as AvatarExtension) ?? config.defaultExtension
-
-			if (cache.fs.checkTime(filename, fileExt, size))
-				cache.fs.delete(filename, fileExt, size)
-		}
-	}
-}, config.avatarCacheTime)
+	}, config.avatarCacheTime)
+}
