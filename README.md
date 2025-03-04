@@ -31,11 +31,11 @@ If you want to make a single request, and save the file to the `./fetched/` dire
 ```sh
 bun fetch 12345678901234[.ext] [path_to_save]
 ```
-<Note>
-If the `fetch` script will receive an id or a path without extension, script will default extension to default defined in config (`src/config.ts`). Today it's: `.png`.  
-</Note>
-<Note>
-If the `fetch` script will receive a path to a directory, script will save the file as `{id}.{ext}` in that directory, asking for confirmation to override.  
+> [!NOTE]
+> If the `fetch` script will receive an id or a path without extension, script will default extension to default defined in config (`src/config.ts`). Today it's: `.png`.  
+
+> [!NOTE]
+> If the `fetch` script will receive a path to a directory, script will save the file as `{id}.{ext}` in that directory, asking for confirmation to override.  
 </Note>
 
 To see help pages for server and fetch scrips - use `-h`/`--help` flag:
@@ -44,7 +44,7 @@ bun start -h
 bun fetch -h
 ```
 
-Configuration can be done by manualy editing `config` object inside [`src/config.ts`](src/config.ts) file
+Configuration can be done by manualy editing `config` object inside [`src/config.ts`](src/config.ts) file.  
 
 
 ## License
