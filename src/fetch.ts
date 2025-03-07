@@ -27,8 +27,10 @@ if (!originalFilename.match(/^\d+(\.\w{3,5})$/)) {
 	process.exit()
 }
 var path = originalPath.match(/\.\w+$/)
-if (!path) {
-	// directory or file with no extension
-} else {
+if (path) {
 	// file
+	console.log(`Path is a file with ${path[0]} extension`)
+} else {
+	// directory or file with no extension
+	console.log(`Path is a directory, or file with no extension`)
 }
