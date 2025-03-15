@@ -1,3 +1,13 @@
+/*
+ * This file is part of discord_avatar_api.
+ * Copyright (c) 2025 MaksymIgnatiev.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE.
+ */
+
+
 import { config } from "./config"
 import type { Avatar, AvatarExtension, AvatarExtensionTuple, Cache, CacheMap } from "./types"
 import { join } from "path"
@@ -217,25 +227,29 @@ export function onCacheType(code: () => void, fs: () => void) {
 	config.cacheType === "code" ? code() : fs()
 }
 
-// check for outdated cache (if not permanently)
-if (config.avatarCacheTime != -1 && config.avatarCacheTime > 0) {
-	setInterval(() => {
-		if (config.cacheType === "code") {
-			for (var [idCode, value] of cacheMap.entries()) {
-				for (var avatar of value) {
-					if (cache.code.checkTime(idCode, avatar.extension, avatar.size))
-						cache.code.delete(idCode, avatar.extension, avatar.size)
+// if runnig as a server
+if (process.argv[1].endsWith(join("src", "index.ts"))) {
+	// check for outdated cache (if not permanently)
+	if (config.avatarCacheTime != -1 && config.avatarCacheTime > 0) {
+		setInterval(() => {
+			if (config.cacheType === "code") {
+				for (var [idCode, value] of cacheMap.entries()) {
+					for (var avatar of value) {
+						if (cache.code.checkTime(idCode, avatar.extension, avatar.size))
+							cache.code.delete(idCode, avatar.extension, avatar.size)
+					}
+				}
+			} else {
+				for (var id of cache.fs.getIds(true)) {
+					var filename = id.match(/^\d+/)?.[0] ?? "",
+						size = +(id.match(/(?<=^\d+_)\d+/)?.[0] ?? config.defaultSize),
+						fileExt =
+							(id.match(/\w+$/)?.[0] as AvatarExtension) ?? config.defaultExtension
+
+					if (cache.fs.checkTime(filename, fileExt, size))
+						cache.fs.delete(filename, fileExt, size)
 				}
 			}
-		} else {
-			for (var id of cache.fs.getIds(true)) {
-				var filename = id.match(/^\d+/)?.[0] ?? "",
-					size = +(id.match(/(?<=^\d+_)\d+/)?.[0] ?? config.defaultSize),
-					fileExt = (id.match(/\w+$/)?.[0] as AvatarExtension) ?? config.defaultExtension
-
-				if (cache.fs.checkTime(filename, fileExt, size))
-					cache.fs.delete(filename, fileExt, size)
-			}
-		}
-	}, config.avatarCacheTime)
+		}, config.avatarCacheTime)
+	}
 }

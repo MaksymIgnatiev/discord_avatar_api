@@ -2,6 +2,7 @@
 	"name": "discord_avarar_api",
 	"module": "src/index.ts",
 	"lisence": "0BSD",
+	"type": "module",
 	"devDependencies": {
 		"@types/bun": "latest"
 	},
@@ -9,12 +10,11 @@
 		"typescript": "^5.7.2"
 	},
 	"scripts": {
-		"start": "bun src/index.ts",
-		"dev": "bun --watch src/index.ts",
-		"help": "bun src/index.ts -h",
-		"fetch": "bun src/fetch.ts -f"
+		"start": "bun run src/index.ts",
+		"dev": "bun run --watch src/index.ts",
+		"help": "bun run src/index.ts -h",
+		"fetch": "bun run src/fetch.ts -f"
 	},
-	"type": "module",
 	"dependencies": {
 		"hono": "^4.6.18"
 	}

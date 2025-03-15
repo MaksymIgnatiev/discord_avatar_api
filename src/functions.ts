@@ -1,6 +1,27 @@
+/*
+ * This file is part of discord_avatar_api.
+ * Copyright (c) 2025 MaksymIgnatiev.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE.
+ */
+
+
+import { existsSync, mkdirSync } from "fs"
 import type { TypedResponse } from "./classes"
 import { config } from "./config"
-import type { AvatarExtension, DiscordUser, ExplanationToAPIResponse, NotEmpty } from "./types"
+import type {
+	AvatarExtension,
+	Config,
+	DiscordUser,
+	ExplanationToAPIResponse,
+	FlagErrorType,
+	NotEmpty,
+	PositiveNumber,
+} from "./types"
+import { fileExts } from "./db"
+import { sep } from "path"
 
 var { DISCORD_API_BOT_TOKEN } = Bun.env
 
@@ -102,27 +123,120 @@ export function explicitMemoFetchUserObject<
 		})
 }
 
+export function isFlag(arg: string) {
+	return /^-{1,2}/.test(arg)
+}
+
+function flagError<T extends FlagErrorType>(
+	type: T,
+	flag: string,
+	available: string | string[],
+	defaults: any,
+) {
+	console.log(
+		`${type === "noValue" ? `Flag '${flag}' haven't got any value` : `Flag '${flag}' accepted wrong value`}. ${Array.isArray(available) ? `Available values: ${available.join(" | ")}` : `Value can be: ${available}`}. Defaulting to '${defaults}'`,
+	)
+}
+
 // too lazy to make necessary infrastructure
 export function parseFlags(args: string[]) {
 	for (var i = 0; i < args.length; i++) {
 		var argRaw = args[i]
 		if (argRaw.match(/^-{1,2}/)) {
 			var flag = argRaw.replace(/^-{1,2}/, "")
-			if (flag === "c" || flag === "cache-type") {
+			if (flag.match(/^(t|cache-type)$/)) {
 				var arg = args[i + 1]
-				if (arg === undefined) {
-					console.log(
-						`Flag '${argRaw}' haven't got any value. Available values: fs, code. Defaulting to '${config.cacheType}'`,
+				if (arg === undefined || isFlag(arg)) {
+					flagError("noValue", argRaw, "fs | code", config.cacheType)
+					continue
+				}
+				if (!arg.match(/^(fs|code)$/)) {
+					flagError("incorrectValue", argRaw, "fs | code", config.cacheType)
+				} else config.cacheType = arg as Config["cacheType"]
+				i++
+			} else if (flag.match(/^(ct|cache-time)$/)) {
+				var arg = args[i + 1]
+				if (arg === undefined || isFlag(arg)) {
+					flagError(
+						"noValue",
+						argRaw,
+						"positive number | -1 (for disabling cache checks)",
+						config.avatarCacheTime,
 					)
 					continue
 				}
-				if (arg !== "fs" && arg !== "code") {
-					console.log(
-						`Flag '${argRaw}' accepted wrong value. Available values: fs, code. Defaulting to '${config.cacheType}'`,
+				if (!arg.match(/^-1$|^\d+$/) || arg === "0") {
+					flagError(
+						"incorrectValue",
+						argRaw,
+						"positive number | -1 (for disabling cache checks)",
+						config.avatarCacheTime,
 					)
-				} else config.cacheType = arg
+				} else config.avatarCacheTime = +arg as PositiveNumber
+				i++
+			} else if (flag.match(/^(s|default-size)$/)) {
+				var arg = args[i + 1]
+				if (arg === undefined || isFlag(arg)) {
+					flagError("noValue", argRaw, "positive number", config.defaultSize)
+					continue
+				}
+				if (!arg.match(/^\d+$/) || arg === "0") {
+					flagError("incorrectValue", argRaw, "positive number", config.defaultSize)
+				} else config.defaultSize = +arg as PositiveNumber
+				i++
+			} else if (flag.match(/^(e|default-extension)$/)) {
+				var arg = args[i + 1]
+				if (arg === undefined || isFlag(arg)) {
+					flagError("noValue", argRaw, fileExts, config.defaultExtension)
+					continue
+				}
+				if (!validExtension(arg)) {
+					flagError("incorrectValue", argRaw, fileExts, config.defaultExtension)
+				} else config.defaultExtension = arg as AvatarExtension
+				i++
+			} else if (flag.match(/^(sh|server-host)$/)) {
+				var arg = args[i + 1]
+				if (arg === undefined || isFlag(arg)) {
+					flagError("noValue", argRaw, "string representing the host", config.server.host)
+					continue
+				} else config.server.host = arg
+				i++
+			} else if (flag.match(/^(sp|server-port)$/)) {
+				var arg = args[i + 1]
+				if (arg === undefined || isFlag(arg)) {
+					flagError("noValue", argRaw, "positive number", config.server.port)
+					continue
+				}
+				if (!arg.match(/^\d+$/)) {
+					flagError("incorrectValue", argRaw, "positive number", config.server.port)
+				} else config.server.port = +arg as PositiveNumber
 				i++
 			} else console.log(`Unknown flag: ${argRaw}`)
 		} else console.log(`Unknown argument: ${argRaw}`)
 	}
+}
+
+export function checkcAndCreateDir(path: string) {
+	!existsSync(path) && mkdirSync(path, { recursive: true })
+}
+
+export function validExtension(ext: string) {
+	return fileExts.includes(ext as AvatarExtension)
+}
+export function isDirNotation(path: string) {
+	return path.endsWith(sep)
+}
+
+export async function getOneLineSTDIN() {
+	var iterator = process.stdin.iterator()
+	var result = (await iterator.next()).value.toString().trim()
+	process.stdin.destroy() // closing stdin to not block the event loop
+	return result
+}
+
+export function stdinPrompt(prompt: string) {
+	return new Promise<string>((res, rej) => {
+		process.stdout.write(prompt)
+		getOneLineSTDIN().then(res, rej)
+	})
 }

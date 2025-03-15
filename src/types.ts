@@ -1,10 +1,20 @@
+/*
+ * This file is part of discord_avatar_api.
+ * Copyright (c) 2025 MaksymIgnatiev.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE.
+ */
+
+
 // add more extensions here
 export type AvatarExtensionTuple = ["webp", "png", "gif", "jpeg", "jpg"]
 // don't touch this line
 export type AvatarExtension = AvatarExtensionTuple[number]
 
 export type NotEmpty<S extends string> = S extends "" ? never : S
-
+export type FlagErrorType = "noValue" | "incorrectValue"
 export type ExplanationToAPIResponse = {
 	key: `fething${"User" | "Avatar"}` | "noAvatar"
 	response: Response

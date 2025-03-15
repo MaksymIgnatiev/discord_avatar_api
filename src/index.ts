@@ -8,7 +8,7 @@
  */
 
 import { Hono, type Context } from "hono"
-import { explicitMemoFetchUserObject, parseFlags } from "./functions"
+import { explicitMemoFetchUserObject, parseFlags, validExtension } from "./functions"
 import { logger } from "hono/logger"
 import { config } from "./config"
 import { cache, createAvatar, fileExts, formatAvatarString } from "./db"
@@ -20,13 +20,18 @@ import type { StatusCode } from "hono/utils/http-status"
 var argv = process.argv,
 	arg = argv[2]
 
-if (/^-h$|^--help$/.test(arg)) {
+if (/^(-h|--help)$/.test(arg)) {
 	console.log(
 		`Usage: bun start [flags...]
 
 FLAGS:
-    -h, --help               Show this message
-    -c, --cache-type <type>  Which cache type to use: code | fs`,
+    -h , --help                        Show this message
+    -t , --cache-type <type>           Which cache type to use: code | fs
+    -ct, --cache-time <ms>             Cache time for the avatars: positive number | -1 (disable checking)
+    -s , --default-size <number>       Default size for all images: positive number
+    -e , --default-extension <number>  Default extension for all images: ${fileExts.join(" | ")}
+    -sh, --server-host <string>        Host fot the server: string (e.g. localhost, 0.0.0.0, etc.)
+    -sp, --server-port <number>        Port fot the server: positive number`,
 	)
 	process.exit()
 }
@@ -73,39 +78,44 @@ app.get("/:id", async (c) => {
 		sizeRaw = c.req.query("size"),
 		size = (sizeRaw && !Number.isNaN(+sizeRaw) && +sizeRaw) || config.defaultSize,
 		ext =
-			(extRaw &&
-				fileExts.includes(extRaw as AvatarExtension) &&
-				(extRaw as AvatarExtension)) ||
+			(extRaw && validExtension(extRaw) && (extRaw as AvatarExtension)) ||
 			config.defaultExtension
 
 	if (!/^\d+(\.\w{3,4})?$/.test(id)) {
-		return c.json(
-			{
-				ok: false,
-				code: 400,
-				message:
-					"Id/query is not a number/valid query (query layout: `{number}.{extension}`)",
-			},
-			400,
+		return incorrectUsage(
+			c,
+			`Id/query is not a number/valid query (query layout: '<id[.extension]>', where: id - positive number; extension - one of valid extensions: ${fileExts.join(" | ")})`,
 		)
 	} else if (/^\d+\.\w{3,4}$/.test(id)) {
 		var ext_ = id.match(/\w+$/)![0] as AvatarExtension
 		id = id.match(/^\d+/)![0]
-		if (fileExts.includes(ext_)) ext = ext_
+		if (validExtension(ext_)) ext = ext_
 		else
 			return incorrectUsage(
 				c,
-				`Unsupported file extension: '${ext_}'. Use one of these: ["${fileExts.join('", "')}"] or read 'https://discord.com/developers/docs/reference#image-formatting-image-formats' to see valid image formats`,
+				`Unsupported file extension: '${ext_}'. Use one of these: ${fileExts.join(" | ")}; or read 'https://discord.com/developers/docs/reference#image-formatting-image-formats' to see valid image formats`,
 			)
 	}
 
-	/*
-	  should i also check extension and size parameters?
-	  or it's better to default them to not bother?
-	  i think it's better to default them,
-	  because it's javascript baby 😎
+	if (extRaw && !validExtension(extRaw))
+		return incorrectUsage(
+			c,
+			`Unsupported file extension: '${extRaw}'. Use one of these: ${fileExts.join(" | ")}; or read 'https://discord.com/developers/docs/reference#image-formatting-image-formats' to see valid image formats (if the API is out of date)`,
+		)
 
-	  @see https://tc39.es/ecma262/multipage/
+	if (sizeRaw && !/^\d+$/.test(sizeRaw))
+		return incorrectUsage(c, `Size parameter (${sizeRaw}) is not a positive number`)
+
+	if (sizeRaw && (+sizeRaw < 1 || +sizeRaw > 2048))
+		return incorrectUsage(c, `Size parameter (${sizeRaw}) out of bound (1 - 2048)`)
+
+	/*
+		should i also check extension and size parameters?
+		or it's better to default them to not bother?
+		i think it's better to default them,
+		because it's javascript baby 😎
+
+		@see https://tc39.es/ecma262/multipage/
 	*/
 
 	// cache check
