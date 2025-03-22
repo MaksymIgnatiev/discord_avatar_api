@@ -7,7 +7,6 @@
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE.
  */
 
-
 import { config } from "./config"
 import { fileExts } from "./db"
 import { join, isAbsolute, dirname } from "path"
@@ -101,18 +100,18 @@ if (originalPath === undefined) {
 		if (!pathFilePath) pathFilePath = pathArg[3]
 
 		if (pathFilePath) out.fileBaseName = pathFilePath
-		if (!pathFileExt) out.fileExt = config.defaultExtension
-		else out.fileExt = pathFileExt
+		if (!out.fileExt) {
+			if (!pathFileExt) out.fileExt = config.defaultExtension
+			else out.fileExt = pathFileExt
+		}
 
 		if (isAbsolute(pathFilePath)) {
-			console.log("Absolute")
 			if (validExtension(out.fileExt)) {
 				if (isDirNotation(pathFilePath))
 					out.fullPath = join(pathFilePath, `${out.id}.${out.fileExt}`)
 				else out.fullPath = `${pathFilePath}.${out.fileExt}`
 			} else extensionIsntValid(pathFileExt)
 		} else if (pathFileExt) {
-			console.log("File")
 			// file
 			if (validExtension(pathFileExt)) out.fileExt = pathFileExt
 			else extensionIsntValid(pathFileExt)
@@ -120,14 +119,12 @@ if (originalPath === undefined) {
 			out.fullPath = join(config.ROOT, `${pathFilePath}.${out.fileExt}`)
 		} else {
 			// directory or file with no extension
-			console.log("Dir or file (no ext)")
 			var pathLike = join(config.ROOT, out.fileDestDir, pathFilePath)
 
 			pathExists = existsSync(pathLike)
 			isDir = pathExists ? lstatSync(pathLike).isDirectory() : false
 
 			if (isDir) {
-				console.log("Dir")
 				// directory (exsisting)
 				out.fileNameFull = `${out.id}.${out.fileExt}`
 				out.fullPath = join(pathLike, out.fileNameFull)
@@ -135,13 +132,11 @@ if (originalPath === undefined) {
 				isDir = isDirNotation(pathLike)
 				if (isDir) {
 					// directory (non exsisting)
-					console.log("Dir")
 					out.fileDestDir = pathLike
 					out.fileNameFull = `${out.id}.${out.fileExt}`
 					out.fullPath = join(out.fileDestDir, out.fileNameFull)
 				} else {
 					// file
-					console.log("file (no ext)")
 					out.fullPath = join(`${pathLike}.${out.fileExt}`)
 				}
 			}
@@ -165,8 +160,8 @@ Promise.resolve()
 					if (answer.match(/y(es)?/i) || answer === "") {
 						mkdirSync(out.fileDestDir, { recursive: true })
 						console.log(`Created directory: ${out.fileDestDir}`)
-					}
-					resolve()
+						resolve()
+					} else exit()
 				})
 			} else resolve()
 		})
